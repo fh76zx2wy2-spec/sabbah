@@ -79,6 +79,11 @@
 
   .pour-seg { transition: flex-basis .6s cubic-bezier(.22,1,.36,1); }
 
+  @keyframes waterMove {
+    from { background-position: 0 0; }
+    to   { background-position: 34px 34px; }
+  }
+
   .no-scrollbar::-webkit-scrollbar{display:none;}
   .no-scrollbar{-ms-overflow-style:none; scrollbar-width:none;}
 
@@ -153,42 +158,47 @@ const TOOLS = [
     desc:'صبّة يدوية مخروطية تُبرز الوضوح والحلاوة في الفنجان.',
     icon:'cone',
     modes: {
-      // مرجع: أسلوب "Ultimate V60" لجيمس هوفمان — نسبة 1:15، بلوم يساوي
-      // ضعف وزن البن لإخراج الغاز، ثم ثلاث صبّات متدرجة تحافظ على مستوى
-      // ماء ثابت تقريبًا فوق سرير البن لاستخلاص متوازن ونظيف.
+      // مرجع: وصفة معتمدة من صاحب الموقع لشخص واحد (تحميص متوسط) — النسخة
+      // النهائية المعايَرة: 18 جم بن : 270 جم ماء (1:15)، بلوم 50 جم (صب
+      // 15ث + وقوف 30ث، ينتهي 0:45)، صبّة 1 حتى 120 جم (صب 15ث + وقوف
+      // 10ث، تنتهي 1:10)، صبّة 2 حتى 200 جم (صب 15ث + وقوف 10ث، تنتهي
+      // 1:35)، صبّة 3 (أخيرة) حتى 270 جم (صب 15ث ثم ترشيح كامل حتى ~2:38،
+      // ضمن مدى 2:30–2:45 المعتمد). عند تغيير التحميص تُطبَّق نسبة
+      // الزيادة/النقصان المعتادة (±10%) على كل هذه الثواني حول هذا الأساس.
       hot: {
-        coffeePerPerson: 15, ratio: 15,
-        bloom: { mult: 2, timeBase: 45 },
-        pourPercents: [0.45, 0.75, 1.0],
-        totalTimeBase: 165, grindBase: 3,
+        coffeePerPerson: 18, ratio: 15,
+        bloom: { mult: 50/18, pourSecBase: 15, waitSecBase: 30 },
+        pourPercents: [120/270, 200/270, 1.0],
+        stageTimes: [ {pourSecBase:15, waitSecBase:10}, {pourSecBase:15, waitSecBase:10}, {pourSecBase:15, waitSecBase:48} ],
+        totalTimeBase: 158, grindBase: 2,
         steps: (r) => [
           `اطحن ${r.coffee} جم بن على درجة "${r.grind}".`,
           `بلّل الفلتر بماء ساخن ثم تخلّص من ماء الشطف، وضع البن في الدريبر.`,
-          `ابدأ البلوم: اسكب ${r.bloom.water} جم ماء بحرارة ${r.temp} على البن، وحرّك برفق، واتركه ${r.bloomTime}.`,
-          ...r.pours.map(p=>`الصبة ${p.n}: اسكب الماء دائريًا حتى تصل إلى ${p.target} جم إجمالًا.`),
-          `اترك الماء يتصافى بالكامل عبر الفلتر، والزمن الإجمالي المتوقع ${r.totalTime}.`,
+          `0:00 — البلوم: اسكب ${r.bloom.water} جم ماء بحرارة ${r.temp} للترطيب بخيط ماء هادئ، واتركه ${r.bloomTime}.`,
+          ...r.pours.map(p=>`اسكب بخيط ماء هادئ حتى تصل إلى ${p.target} جم إجمالًا، ثم انتظر قليلًا قبل الصبة التالية.`),
+          `اترك القهوة تترشح بالكامل — الزمن الإجمالي المتوقع ${r.totalTime}.`,
         ]
       },
-      // مرجع: وصفة "Iced V60" المنشورة فعليًا لجيمس هوفمان (32.5 جم بن :
-      // 500 جم ماء ساخن يُصَبّ عبر البن : 200 جم ثلج يذوب في الدورق) —
-      // أي أن ماء الصب الساخن هو نفس نسبة تحضيره الحار القياسية (1:15
-      // تقريبًا)، والثلج يُضاف كنسبة إضافية (~40% من وزن الماء الساخن)
-      // ليذوب أثناء التقطير ويبرّد المشروب فورًا دون تخفيفه بشكل مبالغ،
-      // ثم يُقدَّم فوق ثلج طازج إضافي في الكوب حسب رغبة الشارب — وهذا
-      // الثلج الإضافي منفصل تمامًا عن ثلج التبريد أثناء التحضير.
+      // مرجع: وصفة معتمدة من صاحب الموقع — "Iced V60 الياباني" لشخص واحد
+      // (تحميص متوسط)، النسخة النهائية المعايَرة: 20 جم بن (طحنة أنعم من
+      // الحار بدرجة) : 120 جم ثلج بالسيرفر : 180 جم ماء ساخن. نفس بلوم
+      // النسخة الحارة (50 جم، صب 15ث + وقوف 30ث، ينتهي 0:45)، ثم صبّة حتى
+      // 110 جم (صب 18ث + وقوف 10ث، تنتهي 1:13)، وصبّة أخيرة حتى 180 جم
+      // (صب 20ث ثم ترشيح كامل حتى ~2:08، ضمن مدى 2:00–2:15 المعتمد).
       cold: {
-        coffeePerPerson: 15, ratio: 15, icePerWater: 0.4,
-        bloom: { mult: 3, timeBase: 45 },
-        pourPercents: [1.0],
-        totalTimeBase: 175, grindBase: 2,
+        coffeePerPerson: 20, ratio: 9, icePerWater: 0.6667, hotPour: true,
+        bloom: { mult: 2.5, pourSecBase: 15, waitSecBase: 30 },
+        pourPercents: [110/180, 1.0],
+        stageTimes: [ {pourSecBase:18, waitSecBase:10}, {pourSecBase:20, waitSecBase:35} ],
+        totalTimeBase: 128, grindBase: 1,
         steps: (r) => [
-          `اطحن ${r.coffee} جم بن على درجة "${r.grind}" (أنعم قليلًا من الوصفة الساخنة).`,
-          `ضع ${r.ice} جم ثلج في الدورق أسفل الدريبر مباشرة (هذا ثلج التبريد أثناء التحضير، وليس ثلج التقديم).`,
+          `اطحن ${r.coffee} جم بن على درجة "${r.grind}" (أنعم من الوصفة الساخنة بدرجة).`,
+          `ضع ${r.ice} جم ثلج في الدورق أسفل الدريبر مباشرة.`,
           `بلّل الفلتر بماء ساخن وتخلّص من ماء الشطف، وضع البن في الدريبر.`,
-          `ابدأ البلوم: اسكب ${r.bloom.water} جم ماء بحرارة ${r.temp} على البن، وحرّك برفق، واتركه ${r.bloomTime}.`,
-          `اسكب الماء ببطء وعلى دوائر متسعة حتى تصل إلى ${r.pours[0].target} جم إجمالًا (يتساقط مباشرة فوق الثلج في الدورق).`,
-          `حرّك الدورق بلطف ليذوب الثلج تمامًا ويتجانس المزيج — الزمن الإجمالي ${r.totalTime}.`,
-          `قدّمه فوق مكعبات ثلج طازجة إضافية في الكوب حسب الرغبة (ثلج تقديم منفصل، لا يدخل في حساب النسبة أعلاه).`,
+          `0:00 — البلوم: اسكب ${r.bloom.water} جم ماء بحرارة ${r.temp} للترطيب بخيط ماء هادئ، واتركه ${r.bloomTime}.`,
+          ...r.pours.map(p=>`اسكب بخيط ماء هادئ حتى تصل إلى ${p.target} جم إجمالًا (يتساقط مباشرة فوق الثلج).`),
+          `اترك القهوة تترشح بالكامل (الزمن الإجمالي ${r.totalTime})، ثم حرّك السيرفر بحركة دائرية 10-15 ثانية حتى يذوب معظم الثلج وتبرد القهوة فورًا — هذه الحركة تثبّت الإيحاءات العطرية.`,
+          `قدّمه فوق مكعبات ثلج جديدة في الكوب.`,
         ]
       }
     }
@@ -286,7 +296,7 @@ const TOOLS = [
       // ماء ساخن، يُسكب مباشرة على ثلج بوزن يساوي تقريبًا الماء الساخن
       // نفسه، بحيث يذوب الثلج ليكمل التخفيف للنسبة النهائية المطلوبة.
       cold: {
-        coffeePerPerson: 18, ratio: 8.5, icePerWater: 0.9,
+        coffeePerPerson: 18, ratio: 8.5, icePerWater: 0.9, hotPour: true,
         totalTimeBase: 90, grindBase: 3,
         steps: (r) => [
           `اطحن ${r.coffee} جم بن على درجة "${r.grind}" وركّب الأيروبريس مقلوبًا.`,
@@ -392,16 +402,29 @@ function computeRecipe(tool, modeKey, people, roastKey){
   const grindIndex = clampGrind(m.grindBase + roast.grindShift);
   const grind = GRIND_SCALE[grindIndex];
 
-  const temp = (modeKey === 'hot') ? `${roast.tempHot[0]}–${roast.tempHot[1]}°م` : 'ساخن قبل الصب مباشرة (95–96°م تقريبًا)';
+  // درجة حرارة الماء الفعلية: تحضيرات "ساخن" عادية، وأيضًا تحضيرات "بارد"
+  // من نوع الصب الساخن فوق الثلج (مثل Iced V60 وAeroPress المثلّج) تحتاج
+  // ماءً ساخنًا فعليًا حسب التحميص — الثلج وحده هو ما يبرّد الناتج لاحقًا.
+  // فقط تحضيرات النقع الحقيقية (فرنش برس بارد، كولد برو، كيوتو) تستخدم
+  // ماءً باردًا أو بحرارة الغرفة فعلًا منذ البداية.
+  const usesHotWater = (modeKey === 'hot') || m.hotPour;
 
   const totalTimeSec = m.totalTimeBase * (1 + roast.timeShift);
   const totalTime = fmtDuration(totalTimeSec);
 
   let bloom = null;
+  let bloomTimeSec = 0;
+  let bloomPourSec = null, bloomWaitSec = null;
   if (m.bloom) {
     const bWater = Math.round(coffee * m.bloom.mult);
-    const bTime = Math.round(m.bloom.timeBase * (1 + roast.timeShift));
-    bloom = { water: bWater, time: `${bTime} ثانية` };
+    if (m.bloom.pourSecBase !== undefined) {
+      bloomPourSec = Math.max(5, Math.round(m.bloom.pourSecBase * (1 + roast.timeShift)));
+      bloomWaitSec = Math.max(0, Math.round(m.bloom.waitSecBase * (1 + roast.timeShift)));
+      bloomTimeSec = bloomPourSec + bloomWaitSec;
+    } else {
+      bloomTimeSec = Math.round(m.bloom.timeBase * (1 + roast.timeShift));
+    }
+    bloom = { water: bWater, time: `${bloomTimeSec} ثانية` };
   }
 
   let pours = null;
@@ -409,23 +432,101 @@ function computeRecipe(tool, modeKey, people, roastKey){
     pours = buildPours(water, bloom ? bloom.water : 0, m.pourPercents);
   }
 
-  const steepTimeSec = (!m.pourPercents) ? m.totalTimeBase * (1 + roast.timeShift) : null;
+  const steepTimeSec = (!m.pourPercents) ? Math.round(m.totalTimeBase * (1 + roast.timeShift)) : null;
   const steepTime = steepTimeSec ? fmtDuration(steepTimeSec) : null;
 
   const r = {
     coffee, water, ice,
     ratioLabel: `1 : ${m.ratio}`,
     grind, grindIndex,
-    temp: (modeKey==='hot') ? `${roast.tempHot[0]}–${roast.tempHot[1]}°م` : 'ماء بارد / بحرارة الغرفة',
+    temp: usesHotWater ? `${roast.tempHot[0]}–${roast.tempHot[1]}°م` : 'ماء بارد / بحرارة الغرفة',
     hotPourTemp: `${roast.tempHot[0]}–${roast.tempHot[1]}°م`,
-    totalTime,
+    totalTime, totalTimeSec,
     bloom: bloom ? { water: bloom.water, time: bloom.time } : null,
-    bloomTime: bloom ? bloom.time : null,
+    bloomTime: bloom ? bloom.time : null, bloomTimeSec,
     pours,
-    steepTime,
+    steepTime, steepTimeSec,
     people, roastLabel: roast.label, modeKey,
   };
   r.steps = m.steps(r);
+
+  // ---- بناء تسلسل "وضع التحضير المباشر" (مؤقت لكل خطوة + الهدف بالغرام) ----
+  // يُبنى من البيانات الرقمية مباشرة (وليس من نصوص الخطوات) حتى يبقى دقيقًا
+  // ومتوافقًا تلقائيًا مع أي أداة جديدة تُضاف مستقبلًا.
+  //
+  // كل فاصل زمني (بلوم / صبّة / تخمير) يُقسَّم فعليًا إلى مرحلتين منفصلتين
+  // لأن هذا هو الواقع الحقيقي للتحضير: صب فعلي قصير، ثم وقوف/انتظار بلا صب
+  // حتى ينزل مستوى الماء أو ينتهي وقت التخمير — بدل معاملة الفاصل كله وكأنه
+  // "صب مستمر" وهو ما لا يحدث عمليًا.
+  const FLOW_RATE = 6; // غم/ثانية تقريبًا لصبّة متحكّم بها بتدفّق معتدل (كانت 4 فتأكل كل وقت الصبّة الصغيرة ولا يتبقى وقوف)
+  function splitPourWait(amount, totalSec, pourLabel, waitLabel, from, target){
+    let pourSec = Math.max(5, Math.round(amount / FLOW_RATE));
+    if (pourSec >= totalSec - 4) {
+      // الدفعة كبيرة جدًا بالنسبة للوقت المتاح (غالبًا كمية كبيرة لعدد أشخاص
+      // كثير) — لا مجال لفصل وقوف منفصل، فتُعامل كصبّة مستمرة واحدة فقط.
+      return [{ title: pourLabel, from, target, durationSec: totalSec, phase:'pour',
+        instruction: `اصبّ من ${from} جم حتى تصل إلى ${target} جم إجمالًا.` }];
+    }
+    return [
+      { title: pourLabel, from, target, durationSec: pourSec, phase:'pour',
+        instruction: `اصبّ الآن من ${from} جم حتى تصل إلى ${target} جم إجمالًا.` },
+      { title: waitLabel, from: target, target, durationSec: totalSec - pourSec, phase:'wait',
+        instruction: `توقف عن الصب الآن وانتظر — لا تصبّ شيئًا حتى تنتهي هذه المرحلة.` },
+    ];
+  }
+
+  const live = [];
+  if (pours) {
+    if (bloom) {
+      if (bloomPourSec !== null) {
+        // توقيت دقيق مُعتمَد بالثانية (وليس تقديرًا) — يُستخدم كما هو.
+        live.push(
+          { title:'صب البلوم', from:0, target:bloom.water, durationSec:bloomPourSec, phase:'pour',
+            instruction:`اصبّ الآن من 0 جم حتى تصل إلى ${bloom.water} جم إجمالًا.` },
+          { title:'وقوف البلوم', from:bloom.water, target:bloom.water, durationSec:bloomWaitSec, phase:'wait',
+            instruction:`توقف عن الصب الآن وانتظر — لا تصبّ شيئًا حتى تنتهي هذه المرحلة.` },
+        );
+      } else {
+        live.push(...splitPourWait(bloom.water, bloomTimeSec, 'صب البلوم', 'وقوف البلوم', 0, bloom.water));
+      }
+    }
+    const remainingSec = Math.max(pours.length * 20, totalTimeSec - bloomTimeSec);
+    const amountsSum = pours.reduce((a,p)=>a+p.amount, 0) || 1;
+    let prevTarget = bloom ? bloom.water : 0;
+    pours.forEach((p, i) => {
+      const isLast = i === pours.length - 1;
+      const waitLabel = isLast ? `وقوف — تصفية أخيرة` : `وقوف — قبل الصبة ${p.n + 1}`;
+      let parts;
+      if (m.stageTimes && m.stageTimes[i]) {
+        // توقيت دقيق مُعتمَد بالثانية لهذه الصبّة تحديدًا.
+        const st = m.stageTimes[i];
+        const pourSec = Math.max(5, Math.round(st.pourSecBase * (1 + roast.timeShift)));
+        const waitSec = Math.max(0, Math.round(st.waitSecBase * (1 + roast.timeShift)));
+        parts = [
+          { title:`صب الصبة ${p.n}`, from:prevTarget, target:p.target, durationSec:pourSec, phase:'pour',
+            instruction:`اصبّ الآن من ${prevTarget} جم حتى تصل إلى ${p.target} جم إجمالًا.` },
+          { title: waitLabel, from:p.target, target:p.target, durationSec:waitSec, phase:'wait',
+            instruction: isLast
+              ? `توقف عن الصب — اترك الماء يتصافى بالكامل عبر الفلتر حتى نهاية المؤقت.`
+              : `توقف عن الصب الآن وانتظر — لا تصبّ شيئًا حتى تنتهي هذه المرحلة.` },
+        ];
+      } else {
+        const dur = Math.max(20, Math.round(remainingSec * (p.amount / amountsSum)));
+        parts = splitPourWait(p.amount, dur, `صب الصبة ${p.n}`, waitLabel, prevTarget, p.target);
+        if (isLast && parts.length === 2) {
+          parts[1].instruction = `توقف عن الصب — اترك الماء يتصافى بالكامل عبر الفلتر حتى نهاية المؤقت.`;
+        }
+      }
+      live.push(...parts);
+      prevTarget = p.target;
+    });
+  } else {
+    live.push(...splitPourWait(water, steepTimeSec, 'إضافة الماء', modeKey === 'cold' && steepTimeSec > 3600 ? 'وقوف — النقع' : 'وقوف — التخمير', 0, water));
+    if (live.length === 2) live[1].instruction = 'حرّك مرة إن أردت، ثم اترك الخليط دون إزعاج حتى نهاية المؤقت.';
+  }
+  r.liveSteps = live;
+  r.prepLine = r.steps[0];
+
   return r;
 }
 
@@ -462,7 +563,7 @@ function toggleTheme(){ state.theme = state.theme === 'dark' ? 'light' : 'dark';
 // التنقل هنا يتم بالكامل داخل الذاكرة (بدون تغيير عنوان الصفحة أو استخدام
 // روابط href)، لأن التنقل عبر location.hash داخل إطار الأداة (iframe) قد
 // يُفسَّر كطلب تصفّح خارجي فينقل المستخدم خارج المعاينة.
-let currentRoute = { name: 'home' };
+let currentRoute = { name: 'splash' };
 
 function navigate(route){
   currentRoute = route;
@@ -484,7 +585,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
 function render(){
   const app = document.getElementById('app');
-  if (currentRoute.name === 'tool') {
+  if (currentRoute.name === 'splash') {
+    app.innerHTML = splashView();
+  } else if (currentRoute.name === 'tool') {
     const tool = TOOLS.find(t => t.id === currentRoute.id);
     if (!tool) { app.innerHTML = notFoundView(); return; }
     state.tool = tool;
@@ -526,6 +629,35 @@ function renderThemeBtn(){
 /* =========================================================================
    واجهة: الصفحة الرئيسية
    ========================================================================= */
+function splashView(){
+  return `
+    <div class="fixed inset-0 z-40 bg-espresso text-cream flex flex-col items-center justify-between overflow-hidden">
+
+      <div class="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-hot/20 blur-3xl"></div>
+      <div class="absolute -bottom-32 -right-16 w-80 h-80 rounded-full bg-cold/15 blur-3xl"></div>
+
+      <div class="relative pt-14 flex flex-col items-center">
+        <span class="text-3xl">☕</span>
+        <p class="font-display text-2xl tracking-wide mt-2">صبّة</p>
+      </div>
+
+      <div class="relative flex-1 flex flex-col items-center justify-center px-8 text-center animate-[fadeSlide_.8s_cubic-bezier(.22,1,.36,1)]">
+        <p class="font-display text-4xl sm:text-5xl leading-[1.7] max-w-md">
+          القهوة ليست مشروبًا…<br/>
+          <span class="text-hot">إنها مزاج</span>
+        </p>
+      </div>
+
+      <div class="relative w-full max-w-xs px-8 pb-12">
+        <button type="button" data-nav="home"
+          class="w-full rounded-2xl bg-hot text-white font-semibold py-4 text-lg shadow-lg shadow-hot/20 active:scale-[.98] transition-transform">
+          ابدأ
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function homeView(){
   const cards = TOOLS.map((t,i) => `
     <button type="button" data-nav="tool" data-id="${t.id}" class="card-lift group relative overflow-hidden rounded-3xl border border-line dark:border-lineDark bg-surface dark:bg-espressoSurface shadow-sm hover:shadow-xl hover:border-hot/50 dark:hover:border-hot/50 text-right w-full">
@@ -745,6 +877,7 @@ function statCard(label, value, unit, accent){
 
 function renderResult(t){
   const r = computeRecipe(t, state.mode, state.people, state.roast);
+  state.recipe = r;
   const zone = document.getElementById('resultZone');
   const isImmersion = !r.pours;
   const bg = '--tick-bg: var(--tw-bg-opacity,1)';
@@ -826,10 +959,160 @@ function renderResult(t){
           <span class="font-semibold num">${isImmersion ? r.steepTime : r.totalTime}</span>
         </div>
 
+        <button id="startBrewBtn" type="button" class="w-full rounded-2xl bg-espresso dark:bg-black/40 border border-lineDark text-cream font-semibold py-4 flex items-center justify-center gap-2 hover:opacity-90 active:scale-[.98] transition-all">
+          <span>ابدأ التحضير المباشر</span>
+          <span aria-hidden="true">⏱</span>
+        </button>
+
       </div>
     </div>
   `;
+  document.getElementById('startBrewBtn').onclick = () => openBrewTimer(t, r);
 }
+
+/* =========================================================================
+   وضع التحضير المباشر: مؤقت شاشة كاملة لكل خطوة (بلوم/صبة/تخمير) بالغرام
+   والثواني، بتصميم مطابق لتطبيقات الميزان الذكي — مبني بالكامل من بيانات
+   الوصفة المحسوبة (r.liveSteps) دون أي اعتماد على نصوص حرة.
+   ========================================================================= */
+const brewTimer = { idx: -1, remaining: 0, timerId: null, paused: false, r: null, t: null };
+
+function openBrewTimer(t, r){
+  brewTimer.r = r; brewTimer.t = t; brewTimer.idx = -1;
+  const overlay = document.createElement('div');
+  overlay.id = 'brewOverlay';
+  overlay.className = 'fixed inset-0 z-50 bg-espresso text-cream flex flex-col';
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  renderBrewIntro();
+}
+
+function closeBrewTimer(){
+  clearInterval(brewTimer.timerId);
+  const overlay = document.getElementById('brewOverlay');
+  if (overlay) overlay.remove();
+  document.body.style.overflow = '';
+}
+
+function brewChrome(inner){
+  return `
+    <div class="flex items-center justify-between px-5 pt-6 pb-2">
+      <button id="brewClose" type="button" aria-label="إغلاق" class="w-9 h-9 rounded-full flex items-center justify-center text-xl text-hot">✕</button>
+      <p class="font-display text-2xl">${brewTimer.t.name}</p>
+      <span class="w-9 h-9"></span>
+    </div>
+    <div class="flex-1 flex flex-col items-center justify-center px-6 pb-10 text-center">${inner}</div>
+  `;
+}
+
+function renderBrewIntro(){
+  const r = brewTimer.r;
+  document.getElementById('brewOverlay').innerHTML = brewChrome(`
+    <p class="text-xs tracking-widest text-mutedDark mb-6">قبل أن تبدأ</p>
+    <p class="text-lg leading-8 max-w-sm mb-10">${r.prepLine}</p>
+    <button id="brewBeginBtn" type="button" class="w-full max-w-xs rounded-2xl bg-hot text-white font-semibold py-4 text-lg">ابدأ</button>
+    <p class="text-xs text-mutedDark mt-4">${r.liveSteps.length} ${r.liveSteps.length===1 ? 'مرحلة' : 'مراحل'} · الوقت الإجمالي ${fmtDuration(r.liveSteps.reduce((a,s)=>a+s.durationSec,0))}</p>
+  `);
+  document.getElementById('brewClose').onclick = closeBrewTimer;
+  document.getElementById('brewBeginBtn').onclick = () => startBrewStep(0);
+}
+
+// يتحدّث المؤقت كل ثانية كاملة فقط (بدون أعشار ثانية وبدون انتقالات CSS)
+// حتى تبقى الشاشة ثابتة وواضحة بلا أي حركة أو تأثيرات بصرية.
+// يتحدّث المؤقت كل ثانية كاملة فقط (بدون أعشار ثانية وبدون انتقالات CSS)،
+// وينتقل تلقائيًا للمرحلة التالية بمجرد وصول الوقت إلى الصفر — دون الحاجة
+// للضغط على زر "التالي" يدويًا. زر التالي يبقى متاحًا فقط لمن يريد التخطي.
+function startBrewStep(idx){
+  clearInterval(brewTimer.timerId);
+  const r = brewTimer.r;
+  if (idx >= r.liveSteps.length) { renderBrewDone(); return; }
+  brewTimer.idx = idx;
+  brewTimer.paused = false;
+  brewTimer.remaining = r.liveSteps[idx].durationSec;
+  paintBrewStep();
+  brewTimer.timerId = setInterval(() => {
+    if (brewTimer.paused) return;
+    brewTimer.remaining -= 1;
+    if (brewTimer.remaining <= 0) {
+      brewTimer.remaining = 0;
+      paintBrewStep();
+      clearInterval(brewTimer.timerId);
+      setTimeout(() => startBrewStep(brewTimer.idx + 1), 1000);
+      return;
+    }
+    paintBrewStep();
+  }, 1000);
+}
+
+function paintBrewStep(){
+  const r = brewTimer.r;
+  const step = r.liveSteps[brewTimer.idx];
+  const elapsed = step.durationSec - brewTimer.remaining;
+  // أثناء "الصب" يرتفع المستوى تدريجيًا مع الوقت. أثناء "الوقوف" الماء
+  // موجود بالفعل من الصبّة السابقة، فيبقى المستوى ثابتًا عند الامتلاء
+  // (100%) طوال هذه المرحلة بدل إعادة احتساب ارتفاع وهمي من الصفر —
+  // وإلا بدا وكأن الصب مستمر أثناء الوقوف، وهذا غير صحيح.
+  const pct = (step.phase === 'pour')
+    ? Math.max(0, Math.min(100, Math.round((elapsed / step.durationSec) * 100)))
+    : 100;
+  const isLong = step.durationSec > 3600;
+  const timeLabel = isLong ? fmtClockLong(brewTimer.remaining) : fmtClockShort(brewTimer.remaining);
+  const isPouring = step.phase === 'pour';
+  const waterColor = r.modeKey === 'cold' ? 'bg-cold' : 'bg-hot';
+
+  document.getElementById('brewOverlay').innerHTML = brewChrome(`
+    <p class="num text-sm text-hot font-semibold mb-1">${brewTimer.idx + 1} / ${r.liveSteps.length}</p>
+    <p class="text-xl font-medium mb-2">${step.title}</p>
+    <p class="text-[11px] tracking-widest text-mutedDark mb-6">${isPouring ? '● يصبّ الآن' : '■ وقوف — بلا صب'}</p>
+
+    <div class="relative w-44 h-44 mb-8 rounded-[2rem] border-2 border-white/15 overflow-hidden bg-white/[.03]">
+      <div id="waterFill" class="absolute inset-x-0 bottom-0 ${waterColor}/60" style="height:${pct}%">
+        <div class="absolute inset-0 opacity-30 ${isPouring ? 'animate-[waterMove_1s_linear_infinite]' : ''}"
+          style="background-image:repeating-linear-gradient(135deg, rgba(255,255,255,.5) 0 6px, transparent 6px 14px); background-size:30px 30px;"></div>
+      </div>
+      <div class="absolute inset-0 flex flex-col items-center justify-center">
+        <span class="num text-3xl font-semibold" dir="ltr">${timeLabel}</span>
+        ${step.target ? `<span class="num text-xs text-mutedDark mt-2">${step.phase === 'pour' ? `من <span class="text-white font-semibold">${step.from}</span> إلى` : 'حتى'} <span class="text-white font-semibold">${step.target}</span> جم</span>` : ''}
+      </div>
+    </div>
+
+    <p class="text-sm leading-7 text-mutedDark max-w-xs mb-10">${step.instruction}</p>
+
+    <div class="flex items-center gap-5">
+      <button id="brewPrev" type="button" aria-label="السابق" class="w-12 h-12 rounded-full border border-lineDark flex items-center justify-center text-lg disabled:opacity-20" ${brewTimer.idx===0?'disabled':''}>›</button>
+      <button id="brewPause" type="button" aria-label="إيقاف مؤقت" class="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-2xl">${brewTimer.paused ? '▶' : '❚❚'}</button>
+      <button id="brewNext" type="button" aria-label="تخطي هذه المرحلة" class="w-12 h-12 rounded-full border border-lineDark flex items-center justify-center text-lg">‹</button>
+    </div>
+  `);
+  document.getElementById('brewClose').onclick = closeBrewTimer;
+  document.getElementById('brewPause').onclick = () => { brewTimer.paused = !brewTimer.paused; paintBrewStep(); };
+  document.getElementById('brewPrev').onclick = () => startBrewStep(brewTimer.idx - 1);
+  document.getElementById('brewNext').onclick = () => startBrewStep(brewTimer.idx + 1);
+}
+
+function renderBrewDone(){
+  document.getElementById('brewOverlay').innerHTML = brewChrome(`
+    <p class="text-5xl mb-5">☕</p>
+    <p class="font-display text-3xl mb-2">تم التحضير!</p>
+    <p class="text-sm text-mutedDark mb-8">استمتع بفنجانك</p>
+    <button id="brewFinishBtn" type="button" class="w-full max-w-xs rounded-2xl bg-hot text-white font-semibold py-4 text-lg">إغلاق</button>
+  `);
+  document.getElementById('brewClose').onclick = closeBrewTimer;
+  document.getElementById('brewFinishBtn').onclick = closeBrewTimer;
+}
+
+
+function fmtClockShort(sec){
+  sec = Math.max(0, Math.round(sec));
+  const m = Math.floor(sec/60), s = sec%60;
+  return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+}
+function fmtClockLong(sec){
+  sec = Math.max(0, Math.round(sec));
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = Math.floor(sec%60);
+  return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+}
+
 </script>
 </body>
 </html>
