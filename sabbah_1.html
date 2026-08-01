@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>صبّة | المرجع العربي لحساب وصفات القهوة المختصة</title>
+<meta name="description" content="صبّة — احسب وصفتك المثالية لأي أداة تحضير قهوة مختصة، بدقة احترافية، بحسب عدد الأشخاص ودرجة التحميص." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E☕%3C/text%3E%3C/svg%3E" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Markazi+Text:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          parchment: '#FAF6EF',
+          surface: '#FFFDF9',
+          ink: '#2B2016',
+          muted: '#7A6A5C',
+          line: '#E7DCCB',
+          espresso: '#19120D',
+          espressoSurface: '#241A13',
+          cream: '#F3E8D9',
+          mutedDark: '#B7A692',
+          lineDark: '#392A20',
+          hot: '#C67A3D',
+          hotSoft: '#F3E1CC',
+          hotSoftDark: 'rgba(198,122,61,.16)',
+          cold: '#2E6F63',
+          coldSoft: '#DCEAE6',
+          coldSoftDark: 'rgba(46,111,99,.18)',
+        },
+        fontFamily: {
+          display: ['"Markazi Text"', 'serif'],
+          body: ['"IBM Plex Sans Arabic"', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'monospace'],
+        },
+        borderRadius: { '2xl': '1.25rem', '3xl': '1.75rem' },
+      }
+    }
+  }
+</script>
+
+<style>
+  html { scroll-behavior: smooth; }
+  body { font-family: 'IBM Plex Sans Arabic', sans-serif; overflow-x: hidden; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .font-display { font-family: 'Markazi Text', serif; }
+  .num { font-family: 'JetBrains Mono', monospace; direction: ltr; unicode-bidi: isolate; }
+
+  ::selection { background: rgba(198,122,61,.25); }
+
+  /* page transition */
+  #app-inner { animation: fadeSlide .5s cubic-bezier(.22,1,.36,1); }
+  @keyframes fadeSlide { from { opacity: 0; transform: translateY(10px);} to { opacity:1; transform:translateY(0);} }
+
+  .card-lift { transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s ease, border-color .35s ease; }
+  .card-lift:hover { transform: translateY(-6px); }
+
+  .chip { transition: all .25s ease; }
+
+  /* signature: perforated ticket edge */
+  .ticket-edge::before {
+    content: "";
+    position: absolute; top: -1px; left: 0; right: 0; height: 14px;
+    background-image: radial-gradient(circle at 10px 0, transparent 7px, var(--tick-bg) 7.5px);
+    background-size: 20px 14px;
+    background-repeat: repeat-x;
+  }
+
+  .stripe-code {
+    background-image: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 5px, currentColor 5px 6px, transparent 6px 11px, currentColor 11px 13px, transparent 13px 18px);
+    opacity: .5;
+  }
+
+  .pour-seg { transition: flex-basis .6s cubic-bezier(.22,1,.36,1); }
+
+  .no-scrollbar::-webkit-scrollbar{display:none;}
+  .no-scrollbar{-ms-overflow-style:none; scrollbar-width:none;}
+
+  @media (prefers-reduced-motion: reduce) {
+    *{ animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body class="bg-parchment text-ink dark:bg-espresso dark:text-cream transition-colors duration-500 selection:bg-hot/20">
+
+<div id="app"></div>
+
+<script>
+/* =========================================================================
+   صبّة — محرك وصفات القهوة المختصة
+   الأرقام والنِسَب هنا مبنية على أفضل الممارسات الشائعة بين محترفي القهوة
+   المختصة (Hario / James Hoffmann / Scott Rao / Barista Hustle)، مع تبسيطها
+   في معادلة واحدة قابلة للتحجيم حسب عدد الأشخاص ودرجة التحميص.
+   ========================================================================= */
+
+// ---------- سلّم الطحن الموحّد (يُستخدم لإزاحة درجة الطحن حسب التحميص) ----------
+const GRIND_SCALE = [
+  'ناعم جدًا (كطحن الإسبريسو)',
+  'ناعم (كالسكر الناعم)',
+  'متوسط إلى ناعم',
+  'متوسط (كملح الطعام الخشن)',
+  'متوسط إلى خشن',
+  'خشن (كملح البحر الخشن)',
+  'خشن جدًا (كالفلفل المطحون خشنًا)'
+];
+
+// ---------- جدول التحميص العام ----------
+// المصدر: هذا هو المنطق المتّبع لدى أغلب المحمصات المختصة ومدارس مثل
+// Barista Hustle — كلما فتح التحميص زادت كثافته فيحتاج حرارة أعلى وطحنًا أنعم
+// وزمنًا أطول قليلًا لتعويض صعوبة الاستخلاص، والعكس مع التحميص الداكن الذي
+// يستخلص بسرعة أكبر فيحتاج حرارة أخفض وطحنًا أخشن وزمنًا أقصر لتفادي المرارة.
+const ROAST = {
+  light:  { label: 'فاتح',   tempHot: [95, 96], grindShift: -1, timeShift:  0.10 },
+  medium: { label: 'متوسط',  tempHot: [93, 94], grindShift:  0, timeShift:  0    },
+  dark:   { label: 'داكن',   tempHot: [90, 92], grindShift: +1, timeShift: -0.10 },
+};
+
+function clampGrind(i){ return Math.max(0, Math.min(GRIND_SCALE.length - 1, i)); }
+function fmtNum(n){ return Math.round(n).toString(); }
+function fmtDuration(sec){
+  sec = Math.round(sec);
+  if (sec < 3600) {
+    const m = Math.floor(sec/60), s = sec%60;
+    return (s===0) ? `${m} د` : `${m}:${s.toString().padStart(2,'0')} د`;
+  }
+  const h = sec/3600;
+  const hRound = Math.round(h*2)/2;
+  return (hRound % 1 === 0) ? `${hRound} ساعة` : `${hRound} ساعة`;
+}
+
+function buildPours(totalWater, bloomWater, percents){
+  let prev = bloomWater, out = [];
+  percents.forEach((p,i)=>{
+    const target = Math.round(totalWater*p);
+    out.push({ n: i+1, target, amount: target - prev });
+    prev = target;
+  });
+  return out;
+}
+
+/* =========================================================================
+   إعدادات كل أداة تحضير — الجرعة والنسبة مبنيتان على المرجعية التالية:
+   ========================================================================= */
+const TOOLS = [
+  {
+    id:'v60', name:'V60', maker:'Hario',
+    desc:'صبّة يدوية مخروطية تُبرز الوضوح والحلاوة في الفنجان.',
+    icon:'cone',
+    modes: {
+      // مرجع: أسلوب "Ultimate V60" لجيمس هوفمان — نسبة 1:15، بلوم يساوي
+      // ضعف وزن البن لإخراج الغاز، ثم ثلاث صبّات متدرجة تحافظ على مستوى
+      // ماء ثابت تقريبًا فوق سرير البن لاستخلاص متوازن ونظيف.
+      hot: {
+        coffeePerPerson: 15, ratio: 15,
+        bloom: { mult: 2, timeBase: 45 },
+        pourPercents: [0.45, 0.75, 1.0],
+        totalTimeBase: 165, grindBase: 3,
+        steps: (r) => [
+          `اطحن ${r.coffee} جم بن على درجة "${r.grind}".`,
+          `بلّل الفلتر بماء ساخن ثم تخلّص من ماء الشطف، وضع البن في الدريبر.`,
+          `ابدأ البلوم: اسكب ${r.bloom.water} جم ماء بحرارة ${r.temp} على البن، وحرّك برفق، واتركه ${r.bloomTime}.`,
+          ...r.pours.map(p=>`الصبة ${p.n}: اسكب الماء دائريًا حتى تصل إلى ${p.target} جم إجمالًا.`),
+          `اترك الماء يتصافى بالكامل عبر الفلتر، والزمن الإجمالي المتوقع ${r.totalTime}.`,
+        ]
+      }
+    }
+  },
+  {
+    id:'chemex', name:'Chemex', maker:'Chemex',
+    desc:'فلترها السميك يمنح فنجانًا فائق النظافة والرقة.',
+    icon:'hourglass',
+    modes: {
+      // مرجع: النسبة القياسية لشيمكس 1:16 (موصى بها من Chemex نفسها ومن
+      // هوفمان) لتعويض سماكة الفلتر التي تحجز زيوتًا ومركّبات أكثر، مع
+      // صبّتين رئيسيتين فقط بعد البلوم لأن التدفق البطيء أصلًا لا يحتاج
+      // تعدد صبّات مثل V60.
+      hot: {
+        coffeePerPerson: 15, ratio: 16,
+        bloom: { mult: 2, timeBase: 45 },
+        pourPercents: [0.55, 1.0],
+        totalTimeBase: 240, grindBase: 4,
+        steps: (r) => [
+          `اطحن ${r.coffee} جم بن على درجة "${r.grind}".`,
+          `بلّل فلتر الشيمكس السميك جيدًا وتخلّص من ماء الشطف.`,
+          `بلوم: اسكب ${r.bloom.water} جم ماء بحرارة ${r.temp}، واتركه ${r.bloomTime}.`,
+          ...r.pours.map(p=>`الصبة ${p.n}: اسكب ببطء وعلى دوائر متسعة حتى ${p.target} جم.`),
+          `انتظر حتى يتصافى الماء بالكامل — الزمن الإجمالي ${r.totalTime}.`,
+        ]
+      }
+    }
+  },
+  {
+    id:'kalita', name:'Kalita Wave', maker:'Kalita',
+    desc:'قاعها المسطح يمنح استخلاصًا متجانسًا وثابتًا.',
+    icon:'wave',
+    modes: {
+      // مرجع: توصيات Barista Hustle لطريقة "Pulse Pour" على قاع مسطح —
+      // صبّات صغيرة متتالية (نبضات) بدل صبّة كبيرة تحافظ على مستوى ماء
+      // منخفض وثابت فوق البن المتجانس، ما يقلل التقنية المطلوبة من المُعدّ.
+      hot: {
+        coffeePerPerson: 15, ratio: 15,
+        bloom: { mult: 2, timeBase: 40 },
+        pourPercents: [0.40, 0.65, 0.85, 1.0],
+        totalTimeBase: 180, grindBase: 3,
+        steps: (r) => [
+          `اطحن ${r.coffee} جم بن على درجة "${r.grind}".`,
+          `بلّل الفلتر الموجي وتخلّص من ماء الشطف.`,
+          `بلوم: ${r.bloom.water} جم ماء بحرارة ${r.temp} لمدة ${r.bloomTime}.`,
+          ...r.pours.map(p=>`نبضة الصب ${p.n}: أضف الماء حتى ${p.target} جم، بفاصل نحو 20–30 ثانية بين كل نبضة.`),
+          `الزمن الإجمالي المتوقع ${r.totalTime}.`,
+        ]
+      }
+    }
+  },
+  {
+    id:'origami', name:'Origami Dripper', maker:'Origami',
+    desc:'دريبر مرن الشكل يجمع بين دقة V60 وسهولة الاستخدام.',
+    icon:'origami',
+    modes: {
+      // مرجع: لأن Origami يُستخدم غالبًا بفلتر مخروطي شبيه بـV60، اعتمدنا
+      // نفس منطق الصبّات الثلاث المتدرجة، وهو ما توصي به أغلب أدلة
+      // المحترفين لهذا الدريبر تحديدًا.
+      hot: {
+        coffeePerPerson: 15, ratio: 15,
+        bloom: { mult: 2, timeBase: 45 },
+        pourPercents: [0.45, 0.75, 1.0],
+        totalTimeBase: 165, grindBase: 3,
+        steps: (r) => [
+          `اطحن ${r.coffee} جم بن على درجة "${r.grind}".`,
+          `بلّل الفلتر (مخروطي أو مسطح حسب الفلتر المتوفر لديك) وتخلّص من ماء الشطف.`,
+          `بلوم: ${r.bloom.water} جم ماء بحرارة ${r.temp} لمدة ${r.bloomTime}.`,
+          ...r.pours.map(p=>`الصبة ${p.n}: اسكب دائريًا حتى ${p.target} جم.`),
+          `الزمن الإجمالي المتوقع ${r.totalTime}.`,
+        ]
+      }
+    }
+  },
+  {
+    id:'aeropress', name:'AeroPress', maker:'Aerobie',
+    desc:'أداة سريعة ومرنة تصنع فنجانًا نظيفًا بضغط بسيط.',
+    icon:'aeropress',
+    modes: {
+      // مرجع: وصفة "Ultimate AeroPress" لجيمس هوفمان — طريقة مقلوبة، نسبة
+      // خفيفة نسبيًا (~1:18) لتفادي المرارة مع زمن تخمير قصير ثابت (دقيقتان)
+      // يبسّط العملية دون التضحية بالوضوح.
+      hot: {
+        coffeePerPerson: 11, ratio: 18,
+        totalTimeBase: 150, grindBase: 2,
+        steps: (r) => [
+          `اطحن ${r.coffee} جم بن على درجة "${r.grind}" وركّب الأيروبريس مقلوبًا.`,
+          `أضف كل الماء (${r.water} جم) بحرارة ${r.temp} دفعة واحدة، وحرّك 10 ثوانٍ.`,
+          `اترك الخليط يتخمّر ${r.steepTime}.`,
+          `ركّب الفلتر والغطاء، اقلب الأيروبريس فوق الكوب، واضغط ببطء خلال 30 ثانية.`,
+          `الزمن الإجمالي ${r.totalTime}.`,
+        ]
+      },
+      // مرجع: تقنية "AeroPress Iced" الشائعة — تحضير مركّز بنسبة أقوى فوق
+      // ماء ساخن، يُسكب مباشرة على ثلج بوزن يساوي تقريبًا الماء الساخن
+      // نفسه، بحيث يذوب الثلج ليكمل التخفيف للنسبة النهائية المطلوبة.
+      cold: {
+        coffeePerPerson: 18, ratio: 8.5, icePerWater: 0.9,
+        totalTimeBase: 90, grindBase: 3,
+        steps: (r) => [
+          `اطحن ${r.coffee} جم بن على درجة "${r.grind}" وركّب الأيروبريس مقلوبًا.`,
+          `ضع ${r.ice} جم ثلج في الكوب السفلي أسفل مكان التقطير.`,
+          `أضف ${r.water} جم ماء ساخن (${r.temp}) دفعة واحدة، وحرّك 10 ثوانٍ.`,
+          `اترك الخليط يتخمّر ${r.steepTime} ثم اقلب واضغط ببطء فوق الثلج مباشرة.`,
+          `حرّك الكوب وقدّمه فورًا — الزمن الإجمالي ${r.totalTime}.`,
+        ]
+      }
+    }
+  },
+  {
+    id:'frenchpress', name:'French Press', maker:'Bodum',
+    desc:'تحضير بالنقع الكامل يمنح جسمًا كثيفًا وقوامًا غنيًا.',
+    icon:'plunger',
+    modes: {
+      // مرجع: نسبة 1:15 هي الأكثر توازنًا بين توصيات سكوت راو ومدرسة
+      // Barista Hustle للفرنش برس الساخن، مع رفع الرغوة (الكِسرة) بعد
+      // الاستخلاص لتقليل المرارة والمذاق الطيني الزائد من الرواسب الدقيقة.
+      hot: {
+        coffeePerPerson: 15, ratio: 15,
+        totalTimeBase: 480, grindBase: 5,
+        steps: (r) => [
+          `اطحن ${r.coffee} جم بن على درجة "${r.grind}" وضعه في الإبريق.`,
+          `أضف كل الماء (${r.water} جم) بحرارة ${r.temp} دفعة واحدة وحرّك برفق.`,
+          `اترك الغطاء (بدون كبس) واتركه يتخمّر ${r.steepTime}.`,
+          `اكسر الطبقة العلوية بملعقة وأزل الرغوة الطافية، ثم انتظر 5 دقائق إضافية ليستقر الرسيب.`,
+          `اكبس ببطء حتى المنتصف فقط، وصبّ فورًا لتفادي الاستخلاص الزائد — الزمن الإجمالي ${r.totalTime}.`,
+        ]
+      },
+      // مرجع: "نقع بارد" بنسبة مركّزة 1:8 على مدى طويل بدرجة حرارة الغرفة
+      // أو الثلاجة، ثم يُخفَّف عند التقديم — أسلوب شائع لدى محترفي القهوة
+      // المختصة كبديل عملي لصانع الكولد برو المخصص.
+      cold: {
+        coffeePerPerson: 25, ratio: 8, icePerWater: 1.0,
+        totalTimeBase: 14*3600, grindBase: 6,
+        steps: (r) => [
+          `اطحن ${r.coffee} جم بن على درجة "${r.grind}" وضعه في الإبريق.`,
+          `أضف ${r.water} جم ماء بارد أو بحرارة الغرفة، وحرّك للتأكد من ترطيب كل البن.`,
+          `غطِّ الإبريق (بدون كبس) واتركه ينقع ${r.steepTime} في الثلاجة أو مكان بارد.`,
+          `اكبس ببطء ثم صفِّ الناتج — هذا مركّز، يُخفَّف عند التقديم.`,
+          `قدّمه مع ${r.ice} جم ماء أو ثلج تقريبًا حسب القوة المرغوبة.`,
+        ]
+      }
+    }
+  },
+  {
+    id:'coldbrew', name:'Cold Brew', maker:'نقع بارد كلاسيكي',
+    desc:'نقع طويل بلا حرارة يمنح حلاوة عالية وحموضة منخفضة.',
+    icon:'jar',
+    modes: {
+      // مرجع: نسبة النقع 1:8 لصنع مركّز، وهي النسبة الأكثر شيوعًا في أدلة
+      // الكولد برو الاحترافية (ومنها توصيات هوفمان)، ثم يُخفَّف عند التقديم
+      // بماء أو ثلج بنسبة تقارب 1:1 للوصول إلى قوة تقديم متوازنة.
+      cold: {
+        coffeePerPerson: 25, ratio: 8, icePerWater: 1.0,
+        totalTimeBase: 16*3600, grindBase: 6,
+        steps: (r) => [
+          `اطحن ${r.coffee} جم بن على درجة "${r.grind}" وضعه في وعاء أو إبريق نقع.`,
+          `أضف ${r.water} جم ماء بارد بحرارة الغرفة، وحرّك جيدًا لترطيب كل البن.`,
+          `غطِّ الوعاء واتركه ينقع ${r.steepTime} في الثلاجة أو مكان بارد ومظلم.`,
+          `صفِّ الناتج عبر فلتر ورقي أو قماشي للحصول على مركّز نظيف.`,
+          `قدّمه مخففًا مع ${r.ice} جم ماء أو ثلج تقريبًا حسب القوة المرغوبة.`,
+        ]
+      }
+    }
+  },
+  {
+    id:'kyoto', name:'Kyoto Cold Drip', maker:'برج التنقيط الياباني',
+    desc:'تنقيط بطيء وطويل ينتج قهوة رقيقة القوام معقّدة النكهة.',
+    icon:'tower',
+    modes: {
+      // مرجع: نسبة 1:10 وزمن تنقيط بطيء ممتد (4–6 ساعات) هي المعتمدة في
+      // أغلب أدلة أبراج التنقيط الياباني، وهي أخف من الكولد برو التقليدي
+      // (1:8) لأن التنقيط البطيء يستخلص بكفاءة أعلى رغم قصر زمن التلامس
+      // اللحظي بين الماء والبن.
+      cold: {
+        coffeePerPerson: 20, ratio: 10, icePerWater: 0.25,
+        totalTimeBase: 5*3600, grindBase: 5,
+        steps: (r) => [
+          `اطحن ${r.coffee} جم بن على درجة "${r.grind}" وضعه في حجرة البن مع تسوية السطح.`,
+          `ضع ${r.ice} جم ثلج في الدورق السفلي أسفل مسار التنقيط لإبقاء الناتج باردًا.`,
+          `املأ الحجرة العلوية بـ ${r.water} جم ماء بارد أو مثلّج.`,
+          `اضبط الصمّام على معدل نقطة كل ثانيتين تقريبًا، بحيث تنتهي كل الكمية خلال ${r.totalTime}.`,
+          `اترك التنقيط دون تدخّل — النتيجة مركّز رقيق يمكن تقديمه كما هو أو مخففًا قليلًا بالثلج.`,
+        ]
+      }
+    }
+  },
+];
+
+/* =========================================================================
+   حساب الوصفة
+   ========================================================================= */
+function computeRecipe(tool, modeKey, people, roastKey){
+  const m = tool.modes[modeKey];
+  const roast = ROAST[roastKey];
+
+  const coffee = Math.round(m.coffeePerPerson * people);
+  const water = Math.round(coffee * m.ratio);
+  const ice = m.icePerWater ? Math.round(water * m.icePerWater) : 0;
+
+  const grindIndex = clampGrind(m.grindBase + roast.grindShift);
+  const grind = GRIND_SCALE[grindIndex];
+
+  const temp = (modeKey === 'hot') ? `${roast.tempHot[0]}–${roast.tempHot[1]}°م` : 'ساخن قبل الصب مباشرة (95–96°م تقريبًا)';
+
+  const totalTimeSec = m.totalTimeBase * (1 + roast.timeShift);
+  const totalTime = fmtDuration(totalTimeSec);
+
+  let bloom = null;
+  if (m.bloom) {
+    const bWater = Math.round(coffee * m.bloom.mult);
+    const bTime = Math.round(m.bloom.timeBase * (1 + roast.timeShift));
+    bloom = { water: bWater, time: `${bTime} ثانية` };
+  }
+
+  let pours = null;
+  if (m.pourPercents) {
+    pours = buildPours(water, bloom ? bloom.water : 0, m.pourPercents);
+  }
+
+  const steepTimeSec = (!m.pourPercents) ? m.totalTimeBase * (1 + roast.timeShift) : null;
+  const steepTime = steepTimeSec ? fmtDuration(steepTimeSec) : null;
+
+  const r = {
+    coffee, water, ice,
+    ratioLabel: `1 : ${m.ratio}`,
+    grind, grindIndex,
+    temp: (modeKey==='hot') ? `${roast.tempHot[0]}–${roast.tempHot[1]}°م` : 'ماء بارد / بحرارة الغرفة',
+    hotPourTemp: `${roast.tempHot[0]}–${roast.tempHot[1]}°م`,
+    totalTime,
+    bloom: bloom ? { water: bloom.water, time: bloom.time } : null,
+    bloomTime: bloom ? bloom.time : null,
+    pours,
+    steepTime,
+    people, roastLabel: roast.label, modeKey,
+  };
+  r.steps = m.steps(r);
+  return r;
+}
+
+/* =========================================================================
+   أيقونات SVG بسيطة (خط واحد) لكل أداة
+   ========================================================================= */
+const ICONS = {
+  cone: `<path d="M20 18h24l-6 30a6 6 0 0 1-12 0z"/><path d="M16 18h32"/><path d="M32 48v10"/><path d="M22 58h20"/>`,
+  hourglass: `<path d="M18 14h28l-12 18 12 18H18l12-18z"/><path d="M18 14h28"/><path d="M18 50h28"/>`,
+  wave: `<path d="M16 22h32l-4 8q-6 4-12 0t-12 0z"/><path d="M20 30l4 20h16l4-20"/><path d="M16 22h32"/>`,
+  origami: `<path d="M32 12l18 16-6 22H20l-6-22z"/><path d="M32 12v38"/><path d="M14 28l18 6 18-6"/>`,
+  aeropress: `<rect x="22" y="14" width="20" height="30" rx="2"/><rect x="18" y="44" width="28" height="10" rx="2"/><path d="M32 6v8"/>`,
+  plunger: `<rect x="18" y="20" width="28" height="32" rx="3"/><path d="M32 8v14"/><path d="M24 8h16"/><path d="M18 30h28"/>`,
+  jar: `<path d="M22 12h20v8l4 4v28a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V24l4-4z"/><path d="M18 34h28"/>`,
+  tower: `<path d="M26 8h12v10h-12z"/><path d="M22 18h20l-3 14h-14z"/><path d="M25 32v8a7 7 0 0 0 14 0v-8"/><path d="M28 50h8v6h-8z"/>`,
+};
+function iconSvg(key, cls){
+  return `<svg viewBox="0 0 64 64" class="${cls}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${ICONS[key]}</svg>`;
+}
+
+/* =========================================================================
+   الحالة والتوجيه (Routing)
+   ========================================================================= */
+const state = {
+  theme: (window.matchMedia && window.matchMedia('prefers-color-scheme: dark').matches) ? 'dark' : 'light',
+  tool: null, mode: null, people: 2, roast: 'medium', calculated: false,
+};
+
+function applyTheme(){
+  document.documentElement.classList.toggle('dark', state.theme === 'dark');
+}
+function toggleTheme(){ state.theme = state.theme === 'dark' ? 'light' : 'dark'; applyTheme(); renderThemeBtn(); }
+
+// التنقل هنا يتم بالكامل داخل الذاكرة (بدون تغيير عنوان الصفحة أو استخدام
+// روابط href)، لأن التنقل عبر location.hash داخل إطار الأداة (iframe) قد
+// يُفسَّر كطلب تصفّح خارجي فينقل المستخدم خارج المعاينة.
+let currentRoute = { name: 'home' };
+
+function navigate(route){
+  currentRoute = route;
+  render();
+  window.scrollTo({top:0, behavior:'instant' in window ? 'instant' : 'auto'});
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  applyTheme();
+  render();
+  document.getElementById('app').addEventListener('click', (e) => {
+    const el = e.target.closest('[data-nav]');
+    if (!el) return;
+    e.preventDefault();
+    if (el.dataset.nav === 'home') navigate({ name: 'home' });
+    else if (el.dataset.nav === 'tool') navigate({ name: 'tool', id: el.dataset.id });
+  });
+});
+
+function render(){
+  const app = document.getElementById('app');
+  if (currentRoute.name === 'tool') {
+    const tool = TOOLS.find(t => t.id === currentRoute.id);
+    if (!tool) { app.innerHTML = notFoundView(); return; }
+    state.tool = tool;
+    state.mode = tool.modes.hot ? 'hot' : 'cold';
+    state.people = 2; state.roast = 'medium'; state.calculated = false;
+    app.innerHTML = toolView(tool);
+    bindToolEvents(tool);
+  } else {
+    app.innerHTML = homeView();
+  }
+}
+
+/* =========================================================================
+   واجهة: الترويسة العلوية
+   ========================================================================= */
+function header(showBack){
+  return `
+  <header class="sticky top-0 z-30 backdrop-blur bg-parchment/85 dark:bg-espresso/85 border-b border-line dark:border-lineDark transition-colors duration-500">
+    <div class="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+      <button type="button" data-nav="home" class="flex items-center gap-2 group">
+        <span class="text-2xl leading-none">☕</span>
+        <span class="font-display text-3xl font-semibold tracking-tight group-hover:text-hot dark:group-hover:text-hot transition-colors">صبّة</span>
+      </button>
+      <div class="flex items-center gap-3">
+        ${showBack ? `<button type="button" data-nav="home" class="hidden sm:inline-block text-sm text-muted dark:text-mutedDark hover:text-ink dark:hover:text-cream transition-colors">↞ كل الأدوات</button>` : ''}
+        <button id="themeBtn" aria-label="تبديل الوضع الداكن/الفاتح"
+          class="w-10 h-10 rounded-full border border-line dark:border-lineDark flex items-center justify-center hover:border-hot dark:hover:border-hot transition-colors">
+          <span id="themeIcon">${state.theme === 'dark' ? '☀️' : '🌙'}</span>
+        </button>
+      </div>
+    </div>
+  </header>`;
+}
+function renderThemeBtn(){
+  const el = document.getElementById('themeIcon');
+  if (el) el.textContent = state.theme === 'dark' ? '☀️' : '🌙';
+}
+
+/* =========================================================================
+   واجهة: الصفحة الرئيسية
+   ========================================================================= */
+function homeView(){
+  const cards = TOOLS.map((t,i) => `
+    <button type="button" data-nav="tool" data-id="${t.id}" class="card-lift group relative overflow-hidden rounded-3xl border border-line dark:border-lineDark bg-surface dark:bg-espressoSurface shadow-sm hover:shadow-xl hover:border-hot/50 dark:hover:border-hot/50 text-right w-full">
+      <div class="relative h-40 sm:h-48 flex items-center justify-center bg-gradient-to-br ${gradFor(t)} overflow-hidden">
+        <div class="absolute -left-6 -bottom-8 w-32 h-32 rounded-full bg-white/10"></div>
+        ${iconSvg(t.icon, 'w-20 h-20 sm:w-24 sm:h-24 text-white/95 relative z-10')}
+        <div class="absolute top-3 left-3 flex gap-1.5">
+          ${t.modes.hot ? `<span class="text-[11px] px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur">☕ ساخن</span>` : ''}
+          ${t.modes.cold ? `<span class="text-[11px] px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur">🧊 بارد</span>` : ''}
+        </div>
+      </div>
+      <div class="p-5">
+        <div class="flex items-baseline justify-between gap-2">
+          <h3 class="font-display text-2xl font-semibold">${t.name}</h3>
+          <span class="text-[11px] text-muted dark:text-mutedDark">${t.maker}</span>
+        </div>
+        <p class="mt-1.5 text-sm leading-6 text-muted dark:text-mutedDark">${t.desc}</p>
+        <div class="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-hot group-hover:gap-2.5 transition-all">
+          ابدأ التحضير <span aria-hidden="true">←</span>
+        </div>
+      </div>
+    </button>
+  `).join('');
+
+  return `
+    <div id="app-inner">
+      ${header(false)}
+      <main class="max-w-6xl mx-auto px-5 sm:px-8">
+        <section class="pt-14 sm:pt-20 pb-10 sm:pb-14 text-center">
+          <div class="inline-flex items-center gap-2 text-xs text-muted dark:text-mutedDark border border-line dark:border-lineDark rounded-full px-3 py-1 mb-5">
+            <span class="stripe-code w-10 h-3 inline-block"></span>
+            المرجع العربي لحساب وصفات القهوة المختصة
+          </div>
+          <h1 class="font-display text-4xl sm:text-7xl font-semibold leading-[1.1] tracking-tight">
+            كل صبّة… <span class="text-hot">حسبة مضبوطة.</span>
+          </h1>
+          <p class="mt-5 max-w-xl mx-auto text-base sm:text-lg text-muted dark:text-mutedDark leading-8">
+            اختر أداتك، ونوع التحضير، وعدد الأشخاص، ودرجة التحميص — ودع صبّة يحسب لك كل غرام ودرجة وثانية.
+          </p>
+        </section>
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-24">
+          ${cards}
+        </section>
+      </main>
+      ${footer()}
+    </div>
+  `;
+}
+function gradFor(t){
+  const both = t.modes.hot && t.modes.cold;
+  if (both) return 'from-hot via-hot to-cold';
+  if (t.modes.cold) return 'from-cold to-[#1c4b42]';
+  return 'from-hot to-[#8f4f24]';
+}
+function footer(){
+  return `<footer class="border-t border-line dark:border-lineDark py-8 text-center text-xs text-muted dark:text-mutedDark">
+    صبّة — وصفات مبنية على أفضل ممارسات القهوة المختصة (Hario · James Hoffmann · Scott Rao · Barista Hustle)
+  </footer>`;
+}
+
+function notFoundView(){
+  return `${header(true)}<main class="max-w-2xl mx-auto px-5 py-24 text-center">
+    <p class="font-display text-4xl mb-3">لم نجد هذه الأداة</p>
+    <button type="button" data-nav="home" class="text-hot">العودة للصفحة الرئيسية ←</button>
+  </main>`;
+}
+
+/* =========================================================================
+   واجهة: صفحة الحاسبة
+   ========================================================================= */
+function toolView(t){
+  const hasBoth = t.modes.hot && t.modes.cold;
+
+  return `
+  <div id="app-inner">
+    ${header(true)}
+    <main class="max-w-3xl mx-auto px-5 sm:px-8 pb-28">
+
+      <section class="pt-10 sm:pt-14 pb-8 flex items-center gap-5">
+        <div class="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl bg-gradient-to-br ${gradFor(t)} flex items-center justify-center">
+          ${iconSvg(t.icon, 'w-12 h-12 sm:w-14 sm:h-14 text-white')}
+        </div>
+        <div>
+          <h1 class="font-display text-4xl sm:text-5xl font-semibold">${t.name}</h1>
+          <p class="text-sm text-muted dark:text-mutedDark mt-1">${t.desc}</p>
+        </div>
+      </section>
+
+      ${hasBoth ? `
+      <section class="mb-8">
+        <p class="text-xs font-medium text-muted dark:text-mutedDark mb-2">نوع التحضير</p>
+        <div class="flex gap-3" id="modeGroup">
+          <button data-mode="hot" class="mode-btn chip flex-1 rounded-2xl border-2 py-3.5 text-sm font-medium"></button>
+          <button data-mode="cold" class="mode-btn chip flex-1 rounded-2xl border-2 py-3.5 text-sm font-medium"></button>
+        </div>
+      </section>` : ''}
+
+      <section class="mb-8">
+        <p class="text-xs font-medium text-muted dark:text-mutedDark mb-2">عدد الأشخاص</p>
+        <div class="rounded-2xl border border-line dark:border-lineDark bg-surface dark:bg-espressoSurface p-4 sm:p-5">
+          <div class="flex items-center justify-between gap-3">
+            <button id="peopleMinus" type="button" aria-label="إنقاص عدد الأشخاص"
+              class="shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border-2 border-line dark:border-lineDark flex items-center justify-center text-2xl font-semibold hover:border-hot hover:text-hot active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none">−</button>
+            <div class="flex-1 text-center select-none">
+              <div class="num text-4xl sm:text-5xl font-semibold leading-none" id="peopleNum">2</div>
+              <div class="text-xs text-muted dark:text-mutedDark mt-1" id="peopleWord">شخصان</div>
+            </div>
+            <button id="peoplePlus" type="button" aria-label="زيادة عدد الأشخاص"
+              class="shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border-2 border-line dark:border-lineDark flex items-center justify-center text-2xl font-semibold hover:border-hot hover:text-hot active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none">+</button>
+          </div>
+          <div class="flex gap-2 mt-4 overflow-x-auto no-scrollbar pb-1" id="peopleChips">
+            ${Array.from({length:10}, (_,i)=>i+1).map(n=>`
+              <button data-people="${n}" type="button"
+                class="people-chip shrink-0 w-10 h-10 rounded-full border-2 border-line dark:border-lineDark text-sm num font-medium flex items-center justify-center hover:border-hot transition-colors">${n}</button>`).join('')}
+          </div>
+        </div>
+      </section>
+
+      <section class="mb-9">
+        <p class="text-xs font-medium text-muted dark:text-mutedDark mb-2">درجة التحميص</p>
+        <div class="grid grid-cols-3 gap-2.5 sm:gap-3" id="roastGroup">
+          ${['light','medium','dark'].map(k=>`
+            <button data-roast="${k}" class="roast-btn chip rounded-2xl border-2 py-3 sm:py-4 flex flex-col items-center gap-2">
+              <span class="w-6 h-6 rounded-full" style="background:${k==='light'?'#D8B27C':k==='medium'?'#8B5A34':'#3A2417'}"></span>
+              <span class="text-xs sm:text-sm font-medium">${ROAST[k].label}</span>
+            </button>`).join('')}
+        </div>
+      </section>
+
+      <button id="calcBtn" class="w-full rounded-2xl bg-hot hover:bg-[#B36A31] text-white font-semibold text-lg py-4 shadow-lg shadow-hot/20 transition-all active:scale-[.98]">
+        احسب الوصفة ☕
+      </button>
+
+      <div id="resultZone" class="mt-10"></div>
+
+    </main>
+    ${footer()}
+  </div>`;
+}
+
+function bindToolEvents(t){
+  document.getElementById('themeBtn').onclick = toggleTheme;
+
+  // mode buttons
+  const modeBtns = document.querySelectorAll('.mode-btn');
+  function paintModeBtns(){
+    modeBtns.forEach(b=>{
+      const m = b.dataset.mode;
+      const active = state.mode === m;
+      b.textContent = m === 'hot' ? '☕ ساخن' : '🧊 بارد';
+      b.className = 'mode-btn chip flex-1 rounded-2xl border-2 py-3.5 text-sm font-medium ' +
+        (active ? 'border-hot bg-hot/10 text-hot' : 'border-line dark:border-lineDark text-muted dark:text-mutedDark hover:border-hot/40');
+    });
+  }
+  modeBtns.forEach(b=> b.onclick = () => { state.mode = b.dataset.mode; paintModeBtns(); maybeRecalc(t); });
+  paintModeBtns();
+
+  // عدد الأشخاص: أزرار +/- بالإضافة إلى شرائح اختيار سريع من 1 إلى 10.
+  // رُتّبت الشرائح في DOM من 1 إلى 10، وبما أن الصفحة RTL بالكامل فإن
+  // العنصر الأول (1) يظهر تلقائيًا من جهة اليمين (بداية القراءة) والعدد
+  // يتزايد باتجاه اليسار — أي بالاتجاه الصحيح المطلوب دون أي تحايل إضافي.
+  const peopleNumEl = document.getElementById('peopleNum');
+  const peopleWordEl = document.getElementById('peopleWord');
+  const peopleMinusBtn = document.getElementById('peopleMinus');
+  const peoplePlusBtn = document.getElementById('peoplePlus');
+  const peopleChipBtns = document.querySelectorAll('.people-chip');
+
+  function peopleWord(n){
+    if (n === 1) return 'شخص واحد';
+    if (n === 2) return 'شخصان';
+    return `${n} أشخاص`;
+  }
+  function paintPeople(){
+    peopleNumEl.textContent = state.people;
+    peopleWordEl.textContent = peopleWord(state.people);
+    peopleMinusBtn.disabled = state.people <= 1;
+    peoplePlusBtn.disabled = state.people >= 10;
+    peopleChipBtns.forEach(b=>{
+      const active = parseInt(b.dataset.people) === state.people;
+      b.className = 'people-chip shrink-0 w-10 h-10 rounded-full border-2 text-sm num font-medium flex items-center justify-center transition-colors ' +
+        (active ? 'border-hot bg-hot text-white' : 'border-line dark:border-lineDark hover:border-hot');
+    });
+  }
+  function setPeople(n){ state.people = Math.max(1, Math.min(10, n)); paintPeople(); maybeRecalc(t); }
+  peopleMinusBtn.onclick = () => setPeople(state.people - 1);
+  peoplePlusBtn.onclick = () => setPeople(state.people + 1);
+  peopleChipBtns.forEach(b => b.onclick = () => setPeople(parseInt(b.dataset.people)));
+  paintPeople();
+
+  // roast buttons
+  const roastBtns = document.querySelectorAll('.roast-btn');
+  function paintRoastBtns(){
+    roastBtns.forEach(b=>{
+      const active = state.roast === b.dataset.roast;
+      b.className = 'roast-btn chip rounded-2xl border-2 py-4 flex flex-col items-center gap-2 ' +
+        (active ? 'border-hot bg-hot/10' : 'border-line dark:border-lineDark hover:border-hot/40');
+    });
+  }
+  roastBtns.forEach(b=> b.onclick = () => { state.roast = b.dataset.roast; paintRoastBtns(); maybeRecalc(t); });
+  paintRoastBtns();
+
+  document.getElementById('calcBtn').onclick = () => { state.calculated = true; renderResult(t); document.getElementById('resultZone').scrollIntoView({behavior:'smooth', block:'start'}); };
+}
+
+function maybeRecalc(t){ if (state.calculated) renderResult(t); }
+
+/* =========================================================================
+   واجهة: نتيجة الحساب
+   ========================================================================= */
+function statCard(label, value, unit, accent){
+  return `
+  <div class="rounded-2xl border border-line dark:border-lineDark bg-surface dark:bg-espressoSurface p-4">
+    <p class="text-[11px] text-muted dark:text-mutedDark mb-1">${label}</p>
+    <p class="text-xl font-semibold ${accent?'text-hot':''}"><span class="num">${value}</span> <span class="text-xs font-normal text-muted dark:text-mutedDark">${unit}</span></p>
+  </div>`;
+}
+
+function renderResult(t){
+  const r = computeRecipe(t, state.mode, state.people, state.roast);
+  const zone = document.getElementById('resultZone');
+  const isImmersion = !r.pours;
+  const bg = '--tick-bg: var(--tw-bg-opacity,1)';
+
+  const timelineSegs = [];
+  if (r.bloom) timelineSegs.push({label:'بلوم', grams: r.bloom.water, isBloom:true});
+  if (r.pours) r.pours.forEach(p => timelineSegs.push({label:`صبة ${p.n}`, grams: p.amount}));
+  const timelineTotal = timelineSegs.reduce((a,s)=>a+s.grams,0) || r.water;
+
+  zone.innerHTML = `
+    <div class="relative rounded-3xl border border-line dark:border-lineDark bg-surface dark:bg-espressoSurface shadow-lg overflow-hidden animate-[fadeSlide_.5s_ease]">
+      <div class="relative ticket-edge px-6 pt-7 pb-5 bg-gradient-to-br ${gradFor(t)} text-white" style="--tick-bg:${state.theme==='dark' ? '#241A13' : '#FFFDF9'}">
+        <p class="text-[11px] tracking-widest opacity-80 mb-1">تذكرة التحضير</p>
+        <div class="flex items-baseline justify-between flex-wrap gap-2">
+          <h2 class="font-display text-3xl font-semibold">${t.name} · ${state.mode==='hot'?'ساخن':'بارد'}</h2>
+          <span class="text-xs opacity-90 num">${r.people} أشخاص · تحميص ${r.roastLabel}</span>
+        </div>
+        <div class="stripe-code h-4 w-full mt-4 text-white"></div>
+      </div>
+
+      <div class="p-6 space-y-8">
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          ${statCard('كمية البن', fmtNum(r.coffee), 'جم', true)}
+          ${statCard('كمية الماء', fmtNum(r.water), 'مل', true)}
+          ${r.ice ? statCard('كمية الثلج', fmtNum(r.ice), 'جم', false) : ''}
+          ${statCard('نسبة التحضير', r.ratioLabel, '', false)}
+          ${statCard('حرارة الماء', r.temp, '', false)}
+          ${statCard('درجة الطحن', r.grind, '', false)}
+        </div>
+
+        ${r.bloom ? `
+        <div>
+          <p class="text-xs font-medium text-muted dark:text-mutedDark mb-2">البلوم (التنفيس الأولي)</p>
+          <div class="rounded-2xl bg-hotSoft dark:bg-hotSoftDark p-4 flex items-center justify-between">
+            <span class="text-sm">أضف <span class="num font-semibold">${r.bloom.water}</span> جم ماء</span>
+            <span class="text-sm text-muted dark:text-mutedDark">لمدة ${r.bloom.time}</span>
+          </div>
+        </div>` : ''}
+
+        ${isImmersion ? `
+        <div>
+          <p class="text-xs font-medium text-muted dark:text-mutedDark mb-2">مدة التخمير / النقع</p>
+          <div class="rounded-2xl bg-coldSoft dark:bg-coldSoftDark p-4 flex items-center justify-between">
+            <span class="text-sm">أضف كل الماء دفعة واحدة</span>
+            <span class="text-sm text-muted dark:text-mutedDark">لمدة ${r.steepTime}</span>
+          </div>
+        </div>` : `
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-medium text-muted dark:text-mutedDark">عدد الصبّات: <span class="num">${r.pours.length}</span></p>
+            <p class="text-xs text-muted dark:text-mutedDark">الوقت الإجمالي: ${r.totalTime}</p>
+          </div>
+          <div class="flex w-full h-3 rounded-full overflow-hidden border border-line dark:border-lineDark">
+            ${timelineSegs.map((s,i)=>`<div class="pour-seg h-full ${s.isBloom ? 'bg-hot/40' : (i%2===0?'bg-hot':'bg-[#8f4f24]')}" style="flex-basis:${(s.grams/timelineTotal*100).toFixed(1)}%"></div>`).join('')}
+          </div>
+          <div class="mt-3 space-y-2">
+            ${r.pours.map(p=>`
+              <div class="flex items-center justify-between text-sm rounded-xl px-4 py-2.5 bg-hotSoft/60 dark:bg-hotSoftDark">
+                <span>الصبة <span class="num">${p.n}</span></span>
+                <span class="text-muted dark:text-mutedDark">أضف حتى <span class="num font-semibold text-ink dark:text-cream">${p.target}</span> جم <span class="text-xs">(+<span class="num">${p.amount}</span>)</span></span>
+              </div>`).join('')}
+          </div>
+        </div>`}
+
+        <div>
+          <p class="text-xs font-medium text-muted dark:text-mutedDark mb-3">خطوات التحضير</p>
+          <ol class="space-y-3">
+            ${r.steps.map((s,i)=>`
+              <li class="flex gap-3 text-sm leading-7">
+                <span class="shrink-0 w-6 h-6 rounded-full bg-hot text-white text-xs flex items-center justify-center num mt-0.5">${i+1}</span>
+                <span>${s}</span>
+              </li>`).join('')}
+          </ol>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-line dark:border-lineDark text-sm">
+          <span class="text-muted dark:text-mutedDark">الزمن الإجمالي للتحضير</span>
+          <span class="font-semibold num">${isImmersion ? r.steepTime : r.totalTime}</span>
+        </div>
+
+      </div>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>
