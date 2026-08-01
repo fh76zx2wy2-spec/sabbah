@@ -606,6 +606,10 @@ function render(){
 function header(showBack){
   return `
   <header class="sticky top-0 z-30 backdrop-blur bg-parchment/85 dark:bg-espresso/85 border-b border-line dark:border-lineDark transition-colors duration-500">
+    <div class="max-w-6xl mx-auto px-5 sm:px-8 pt-2 flex items-center justify-between">
+      <span class="text-[10px] text-muted dark:text-mutedDark">© جميع الحقوق محفوظة — زياد بن محمد</span>
+      <span id="hijriClock" class="text-sm font-medium text-ink dark:text-cream">${formatHijriClock()}</span>
+    </div>
     <div class="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
       <button type="button" data-nav="home" class="flex items-center gap-2 group">
         <span class="text-2xl leading-none">☕</span>
@@ -621,6 +625,22 @@ function header(showBack){
     </div>
   </header>`;
 }
+
+// تاريخ اليوم بالتقويم الهجري (أم القرى) + الوقت الحالي، يتحدّث تلقائيًا
+// كل دقيقة دون الحاجة لإعادة رسم الصفحة كاملة.
+function formatHijriClock(){
+  const now = new Date();
+  const datePart = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  }).format(now);
+  const timePart = new Intl.DateTimeFormat('ar-SA', { hour: 'numeric', minute: '2-digit' }).format(now);
+  return `${datePart} · ${timePart}`;
+}
+setInterval(() => {
+  const el = document.getElementById('hijriClock');
+  if (el) el.textContent = formatHijriClock();
+}, 30000);
+
 function renderThemeBtn(){
   const el = document.getElementById('themeIcon');
   if (el) el.textContent = state.theme === 'dark' ? '☀️' : '🌙';
